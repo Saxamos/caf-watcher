@@ -141,76 +141,76 @@ with tab_scraping:
             st.warning("⚠️ Configure d'abord l'authentification pour scraper FFCAM")
 
 with tab_list:
-
     # Sidebar pour les filtres et statistiques (dans l'onglet liste)
     with st.sidebar:
-    st.header("📊 Statistiques")
-    stats = db.get_statistics()
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Total", stats['total'])
-        st.metric("Nouvelles", stats['nouvelles'])
-    with col2:
-        st.metric("Vues", stats['vues'])
-        if stats['total'] > 0:
-            pourcentage = (stats['vues'] / stats['total']) * 100
-            st.metric("% Vues", f"{pourcentage:.0f}%")
-    
-    st.divider()
-    
-    st.header("🔍 Filtres")
-    
-    # Filtre par statut
-    status_filter = st.radio(
-        "Statut",
-        ["Toutes", "Nouvelles uniquement", "Vues uniquement"],
-        key="status_filter"
-    )
-    
-    # Filtre par activité
-    activites = ["Toutes"] + [a['activite'] for a in stats['par_activite']]
-    activite_filter = st.selectbox("Activité", activites)
-    
-    # Filtre par niveau
-    st.subheader("Niveau")
-    niveau_min = st.slider("Niveau minimum", 0, 5, 0)
-    niveau_max = st.slider("Niveau maximum", 0, 5, 5)
-    
-    st.divider()
-    
-    # Actions rapides
-    st.header("⚡ Actions rapides")
-    if st.button("✅ Tout marquer comme vu", use_container_width=True):
-        sorties = db.get_all_sorties(seen_filter=False)
-        if sorties:
-            ids = [s['id'] for s in sorties]
-            db.mark_multiple_as_seen(ids, seen=True)
-            st.success(f"{len(ids)} sorties marquées comme vues")
-            st.rerun()
-    
-    if st.button("🔄 Réinitialiser tout", use_container_width=True):
-        sorties = db.get_all_sorties()
-        if sorties:
-            ids = [s['id'] for s in sorties]
-            db.mark_multiple_as_seen(ids, seen=False)
-            st.success("Toutes les sorties réinitialisées")
-            st.rerun()
-    
-    # Filtre par source
-    st.divider()
-    source_filter = st.multiselect(
-        "Source",
-        ["CAF Crest", "FFCAM"],
-        default=["CAF Crest", "FFCAM"]
-    )
+        st.header("📊 Statistiques")
+        stats = db.get_statistics()
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total", stats['total'])
+            st.metric("Nouvelles", stats['nouvelles'])
+        with col2:
+            st.metric("Vues", stats['vues'])
+            if stats['total'] > 0:
+                pourcentage = (stats['vues'] / stats['total']) * 100
+                st.metric("% Vues", f"{pourcentage:.0f}%")
+        
+        st.divider()
+        
+        st.header("🔍 Filtres")
+        
+        # Filtre par statut (par défaut: Nouvelles uniquement)
+        status_filter = st.radio(
+            "Statut",
+            ["Toutes", "Nouvelles uniquement", "Vues uniquement"],
+            index=1,  # Par défaut: Nouvelles uniquement
+            key="status_filter"
+        )
+        
+        # Filtre par activité
+        activites = ["Toutes"] + [a['activite'] for a in stats['par_activite']]
+        activite_filter = st.selectbox("Activité", activites)
+        
+        # Filtre par niveau
+        st.subheader("Niveau")
+        niveau_min = st.slider("Niveau minimum", 0, 5, 0)
+        niveau_max = st.slider("Niveau maximum", 0, 5, 5)
+        
+        st.divider()
+        
+        # Actions rapides
+        st.header("⚡ Actions rapides")
+        if st.button("✅ Tout marquer comme vu", use_container_width=True):
+            sorties = db.get_all_sorties(seen_filter=False)
+            if sorties:
+                ids = [s['id'] for s in sorties]
+                db.mark_multiple_as_seen(ids, seen=True)
+                st.success(f"{len(ids)} sorties marquées comme vues")
+                st.rerun()
+        
+        if st.button("🔄 Réinitialiser tout", use_container_width=True):
+            sorties = db.get_all_sorties()
+            if sorties:
+                ids = [s['id'] for s in sorties]
+                db.mark_multiple_as_seen(ids, seen=False)
+                st.success("Toutes les sorties réinitialisées")
+                st.rerun()
+        
+        # Filtre par source
+        st.divider()
+        source_filter = st.multiselect(
+            "Source",
+            ["CAF Crest", "FFCAM"],
+            default=["CAF Crest", "FFCAM"]
+        )
 
     # Récupère les sorties en fonction des filtres
-seen_filter_value = None
-if status_filter == "Nouvelles uniquement":
-    seen_filter_value = False
-elif status_filter == "Vues uniquement":
-    seen_filter_value = True
+    seen_filter_value = None
+    if status_filter == "Nouvelles uniquement":
+        seen_filter_value = False
+    elif status_filter == "Vues uniquement":
+        seen_filter_value = True
 
     activite_search = None if activite_filter == "Toutes" else activite_filter
 
