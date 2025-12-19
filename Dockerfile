@@ -17,11 +17,15 @@ RUN uv pip install --system -r pyproject.toml
 
 # Copie le code source après l'installation
 COPY src/ ./src/
+COPY scripts/ ./scripts/
 
 # Définit les variables d'environnement
 ENV CHECK_INTERVAL_HOURS=12
 ENV RUN_ONCE=false
 ENV PYTHONPATH=/app
 
-# Commande par défaut
+# Expose le port pour Streamlit
+EXPOSE 8501
+
+# Commande par défaut (scraper)
 CMD ["uv", "run", "python", "-c", "from src.scraper import CAFWatcher; import os; CAFWatcher('/data').run_continuous(int(os.getenv('CHECK_INTERVAL_HOURS', '12'))) if os.getenv('RUN_ONCE', 'false').lower() != 'true' else CAFWatcher('/data').check_for_updates()"]

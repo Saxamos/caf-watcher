@@ -1,10 +1,13 @@
 services:
-  caf-watcher:
+  app:
     build: .
-    container_name: caf-watcher
+    container_name: caf-watcher-app
+    command: ["uv", "run", "streamlit", "run", "src/app.py", "--server.address", "0.0.0.0", "--server.port", "8501"]
     environment:
-      - CHECK_INTERVAL_HOURS=12
-      - RUN_ONCE=false
+      - DB_PATH=/data/sorties.db
+    ports:
+      - "8501:8501"
     volumes:
       - ./data:/data
+      - ./src:/app/src
     restart: unless-stopped

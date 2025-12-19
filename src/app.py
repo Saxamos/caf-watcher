@@ -18,7 +18,9 @@ st.set_page_config(
 # Initialisation de la base de données
 @st.cache_resource
 def get_db():
-    return SortiesDB("data/sorties.db")
+    import os
+    db_path = os.getenv('DB_PATH', 'data/sorties.db')
+    return SortiesDB(db_path)
 
 db = get_db()
 

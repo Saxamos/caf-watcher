@@ -20,8 +20,5 @@ docker-down: ## Arrête le container Docker
 docker-logs: ## Affiche les logs du container
 	docker-compose logs -f
 
-docker-scrape: ## Lance le scraper une fois dans Docker
-	docker-compose run --rm -e RUN_ONCE=true caf-watcher
-
-docker-app: ## Lance l'interface Streamlit dans Docker
-	docker run --rm -p 8501:8501 -v $$(pwd)/data:/app/data -v $$(pwd)/src:/app/src caf-watcher-caf-watcher uv run streamlit run src/app.py --server.address 0.0.0.0 --server.port 8501
+docker-scrape: ## Lance le scraper une fois
+	docker-compose run --rm -e DATA_DIR=/data app uv run python scripts/run_scraper.py

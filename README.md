@@ -47,44 +47,34 @@ make install
 
 ### Mode Docker (recommandé)
 
-Lance le scraper en arrière-plan qui vérifie toutes les 12h :
+Lance l'interface web Streamlit en arrière-plan :
 
 ```bash
-# Build et lance
+# Build et lance l'app
 make docker-build
 make docker-up
 
+# L'app sera accessible sur http://localhost:8501
+
 # Voir les logs
 make docker-logs
-
-# Scraper une fois
-make docker-scrape
 
 # Arrêter
 make docker-down
 ```
 
-### Interface Web Streamlit (via Docker)
+### Interface Web Streamlit
 
-Pour accéder à l'interface web de gestion des sorties :
-
-```bash
-# Lance Streamlit dans un container temporaire
-docker run --rm -p 8501:8501 \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/src:/app/src \
-  caf-watcher-caf-watcher \
-  uv run streamlit run src/app.py --server.address 0.0.0.0 --server.port 8501
-```
-
-L'application sera accessible sur http://localhost:8501
-
-**Fonctionnalités :**
+L'application web permet de :
+- 🔄 **Scraper à la demande** avec le bouton "Rafraîchir"
 - ✅ Liste des sorties avec checkboxes pour marquer comme vu
 - 🔍 Filtres par activité, niveau, statut
 - 📊 Statistiques en temps réel
 - 🎯 Groupement par activité
 - 📋 Vue détaillée de chaque sortie
+- 🔗 Liens directs vers les sorties CAF
+
+**Note :** Le scraping est maintenant **à la demande uniquement** via le bouton dans l'interface. Plus de scraping automatique en arrière-plan.
 
 ## 📝 Commandes disponibles
 
@@ -108,8 +98,8 @@ SQLite est utilisé pour stocker les sorties :
 ## 🔧 Configuration
 
 Variables d'environnement (Docker) :
-- `CHECK_INTERVAL_HOURS` : Intervalle entre chaque vérification (défaut: 12h)
-- `RUN_ONCE` : Si `true`, lance le scraper une seule fois puis arrête
+- `DB_PATH` : Chemin vers la base de données SQLite (défaut: `/data/sorties.db` en Docker, `data/sorties.db` en local)
+- `DATA_DIR` : Répertoire des données pour le scraper (défaut: `/data` en Docker, `data` en local)
 
 ## 📦 Dépendances
 
