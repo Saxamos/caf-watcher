@@ -1,0 +1,10 @@
+services:
+  caf-watcher:
+    build: .
+    container_name: caf-watcher
+    environment:
+      - CHECK_INTERVAL_HOURS=12
+      - RUN_ONCE=false
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables (NEVER COMMIT)
+.env
+.env.local
+
+# uv
+.uv/
+uv.lock
+
+# Data
+data/*.db
+data/*.json
+data/backups/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Streamlit
+.streamlit/

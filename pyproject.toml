@@ -1,0 +1,12 @@
+[project]
+name = "caf-watcher"
+version = "1.0.0"
+description = "Watcher pour les sorties CAF Crest avec interface Streamlit"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.31.0",
+    "beautifulsoup4>=4.12.2",
+    "streamlit>=1.29.0",
+    "lxml>=4.9.3",
+]
+
