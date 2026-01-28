@@ -11,6 +11,33 @@ from src.ffcam_formations_scraper import FFCAMFormationsScraper
 from datetime import datetime
 import os
 
+MOIS = ("janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc.")
+
+
+def url_outing_ffcam(url: str) -> str:
+    """Corrige l’URL FFCAM : /sortie/ n’existe pas, c’est /outing/ ; ajoute ?tab=info."""
+    if not url:
+        return ""
+    if "sorties.ffcam.fr/sortie/" in url:
+        url = url.replace("sorties.ffcam.fr/sortie/", "sorties.ffcam.fr/outing/", 1)
+    if "sorties.ffcam.fr/outing/" in url and "?" not in url:
+        url = f"{url}?tab=info"
+    return url
+
+
+def format_date_lecture(iso_date: str) -> str:
+    """Formate une date ISO (2026-07-11T07:00:00.000Z) en format lisible (11 juil. 2026)."""
+    if not iso_date:
+        return iso_date or "—"
+    try:
+        s = iso_date.replace("Z", "+00:00").strip()
+        if "T" in s:
+            s = s.split("T")[0]
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return f"{dt.day} {MOIS[dt.month - 1]} {dt.year}"
+    except (ValueError, TypeError):
+        return iso_date
+
 # Configuration de la page
 st.set_page_config(
     page_title="CAF Crest - Sorties",
@@ -108,16 +135,20 @@ with st.sidebar:
             st.success("Toutes les sorties réinitialisées")
             st.rerun()
 
-    # FFCAM : configurer les cookies (session navigateur)
+    # FFCAM : configurer JWT
     st.divider()
     st.subheader("🌐 FFCAM")
-    with st.expander("Configurer les cookies (sorties.ffcam.fr)"):
-        st.caption("Sur la page sorties.ffcam.fr, ouvre DevTools (F12) → Network → rafraîchis → clique une requête → Request Headers → copie la valeur de « Cookie ».")
-        cookie_input = st.text_area("Cookie", height=80, placeholder="nom1=valeur1; nom2=valeur2; ...", label_visibility="collapsed")
-        if st.button("Sauvegarder les cookies FFCAM", use_container_width=True) and cookie_input:
-            ffcam = FFCAMScraper(data_dir=os.path.dirname(os.getenv("DB_PATH", "/data/sorties.db")) or "/data")
-            if ffcam.save_cookies(cookie_input):
-                st.success("Cookies enregistrés. Recharge la page pour mettre à jour les sorties FFCAM.")
+    with st.expander("Configurer le JWT (sorties.ffcam.fr)"):
+        st.caption("Colle le JWT (Authorization) depuis DevTools → Network → requête **for-club/outing** → Request Headers → **Authorization** (eyJ...).")
+        jwt_input = st.text_area("JWT (Authorization)", height=60, placeholder="eyJ... (access token)", label_visibility="collapsed", key="ffcam_jwt")
+        if st.button("Sauvegarder le JWT FFCAM", use_container_width=True, key="save_jwt") and jwt_input:
+            data_dir = os.path.dirname(os.getenv("DB_PATH", "/data/sorties.db")) or "/data"
+            ffcam = FFCAMScraper(data_dir=data_dir)
+            if ffcam.save_jwt(jwt_input):
+                with st.spinner("Chargement des sorties FFCAM..."):
+                    for sortie in ffcam.scrape_sorties():
+                        db.upsert_sortie(sortie)
+                st.success("JWT enregistré. Sorties FFCAM mises à jour.")
                 st.rerun()
 
     # Filtre par source
@@ -197,7 +228,7 @@ def display_sorties(db, sorties_list):
             with col2:
                 # Informations de la sortie avec lien et source
                 if sortie.get('url'):
-                    st.markdown(f"### {emoji_status} {source_emoji} [{sortie['titre']}]({sortie['url']})")
+                    st.markdown(f"### {emoji_status} {source_emoji} [{sortie['titre']}]({url_outing_ffcam(sortie['url'])})")
                 else:
                     st.markdown(f"### {emoji_status} {source_emoji} {sortie['titre']}")
                 st.caption(f"Source: {source_label}")
@@ -206,13 +237,19 @@ def display_sorties(db, sorties_list):
                 col_info1, col_info2, col_info3 = st.columns(3)
 
                 with col_info1:
-                    st.markdown(f"📅 **{sortie['date']}**")
+                    st.markdown(f"📅 **{format_date_lecture(sortie['date'])}**")
                     st.markdown(f"📍 {sortie['lieu']}")
 
                 with col_info2:
-                    # Niveaux avec étoiles
-                    niveau_phys = sortie['niveau_physique']
-                    niveau_tech = sortie['niveau_technique']
+                    # Niveaux avec étoiles (peuvent être int ou str "N/A")
+                    try:
+                        niveau_phys = int(sortie['niveau_physique']) if sortie.get('niveau_physique') not in (None, "", "N/A") else 0
+                    except (TypeError, ValueError):
+                        niveau_phys = 0
+                    try:
+                        niveau_tech = int(sortie['niveau_technique']) if sortie.get('niveau_technique') not in (None, "", "N/A") else 0
+                    except (TypeError, ValueError):
+                        niveau_tech = 0
 
                     phys_stars = "⭐" * niveau_phys if niveau_phys > 0 else "N/A"
                     tech_stars = "⭐" * niveau_tech if niveau_tech > 0 else "N/A"
@@ -238,7 +275,7 @@ def display_sorties(db, sorties_list):
                         st.markdown(f"**Activité:** {sortie['activite']}")
                         st.markdown(f"**Titre:** {sortie['titre']}")
                         st.markdown(f"**Lieu:** {sortie['lieu']}")
-                        st.markdown(f"**Date:** {sortie['date']}")
+                        st.markdown(f"**Date:** {format_date_lecture(sortie['date'])}")
                         st.markdown(f"**Niveau Physique:** {sortie['niveau_physique']}")
                         st.markdown(f"**Niveau Technique:** {sortie['niveau_technique']}")
                         st.markdown(f"**Places:** {sortie['places']}")
