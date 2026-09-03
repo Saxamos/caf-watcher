@@ -8,7 +8,5 @@ dependencies = [
     "beautifulsoup4>=4.12.2",
     "streamlit>=1.29.0",
     "lxml>=4.9.3",
-    "browser-cookie3>=0.19.1",
-    "pycryptodome>=3.19.0",
 ]
 

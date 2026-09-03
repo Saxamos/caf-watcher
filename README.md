@@ -1,23 +1,47 @@
-# 🏔️ CAF Crest Watcher
+# 🏔️ CAF Watcher
 
-Application de surveillance des sorties du CAF Crest avec interface web moderne.
+Application de surveillance des sorties de clubs FFCAM (Crest, Montpellier, ...) avec interface web moderne.
+
+## 🌐 Sources de données
+
+Les sorties des clubs sont désormais toutes gérées par la plateforme **ALPI**
+(`sorties.ffcam.fr`) :
+- Crest : embarquée en iframe sur `crest.ffcam.fr/agenda-new.html`
+- Montpellier : directement sur `sorties.ffcam.fr/programme/<club_id>`
+
+Le scraper (`src/ffcam_scraper.py`) utilise l'API **publique** `for-iframe`
+(la même que celle utilisée par ces widgets), qui ne nécessite **aucune
+authentification** :
+
+```
+https://api.sorties.ffcam.fr/for-iframe/club/<club_id>/outing
+```
+
+Le `club_id` se trouve dans l'URL `sorties.ffcam.fr/programme/<club_id>` du
+club, ou dans le `src` de l'iframe intégrée sur son site (voir
+`src/clubs.py` pour la config actuelle et comment en ajouter/enlever).
+
+Les formations fédérales (`src/ffcam_formations_scraper.py`) restent
+scrapées depuis `ffcam.fr/les-formations.html`.
 
 ## 📁 Structure du projet
 
 ```
 caf-watcher/
-├── src/                    # Code source
-│   ├── database.py        # Gestion SQLite
-│   ├── scraper.py         # Scraper web
-│   └── app.py            # Application Streamlit
-├── scripts/               # Scripts utilitaires
-│   └── run_scraper.py    # Lance le scraper manuellement
-├── data/                  # Données (créé automatiquement)
-│   └── sorties.db        # Base de données SQLite
-├── pyproject.toml        # Configuration uv & dépendances
-├── Dockerfile            # Image Docker
-├── docker-compose.yml    # Configuration Docker
-└── Makefile              # Commandes rapides
+├── src/                     # Code source
+│   ├── database.py         # Gestion SQLite
+│   ├── clubs.py            # Config des clubs FFCAM suivis
+│   ├── ffcam_scraper.py    # Scraper des sorties (API publique ALPI)
+│   ├── ffcam_formations_scraper.py  # Scraper des formations fédérales
+│   └── app.py               # Application Streamlit
+├── scripts/                 # Scripts utilitaires
+│   └── run_scraper.py      # Lance le scraper manuellement
+├── data/                    # Données (créé automatiquement)
+│   └── sorties.db          # Base de données SQLite
+├── pyproject.toml          # Configuration uv & dépendances
+├── Dockerfile               # Image Docker
+├── docker-compose.yml      # Configuration Docker
+└── Makefile                 # Commandes rapides
 ```
 
 ## 🚀 Démarrage rapide
@@ -100,6 +124,7 @@ SQLite est utilisé pour stocker les sorties :
 Variables d'environnement (Docker) :
 - `DB_PATH` : Chemin vers la base de données SQLite (défaut: `/data/sorties.db` en Docker, `data/sorties.db` en local)
 - `DATA_DIR` : Répertoire des données pour le scraper (défaut: `/data` en Docker, `data` en local)
+- `FFCAM_CLUBS` : Surcharge la liste des clubs suivis, au format `Label1:id1,Label2:id2` (défaut : Crest + Montpellier, voir `src/clubs.py`)
 
 ## 📦 Dépendances
 

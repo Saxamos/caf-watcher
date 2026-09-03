@@ -5,24 +5,37 @@ Application Streamlit pour visualiser et gérer les sorties CAF Crest et FFCAM
 
 import streamlit as st
 from src.database import SortiesDB
-from src.scraper import CAFWatcher
 from src.ffcam_scraper import FFCAMScraper
 from src.ffcam_formations_scraper import FFCAMFormationsScraper
+from src.clubs import get_clubs
 from datetime import datetime
 import os
 
 MOIS = ("janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc.")
 
 
-def url_outing_ffcam(url: str) -> str:
-    """Corrige l’URL FFCAM : /sortie/ n’existe pas, c’est /outing/ ; ajoute ?tab=info."""
-    if not url:
-        return ""
-    if "sorties.ffcam.fr/sortie/" in url:
-        url = url.replace("sorties.ffcam.fr/sortie/", "sorties.ffcam.fr/outing/", 1)
-    if "sorties.ffcam.fr/outing/" in url and "?" not in url:
-        url = f"{url}?tab=info"
-    return url
+def source_info(sortie_id: str) -> tuple[str, str]:
+    """Retourne (emoji, label) de la source d'une sortie à partir de son ID."""
+    if sortie_id.startswith("ffcam_form_"):
+        return "📚", "FFCAM Formations"
+    for club in get_clubs():
+        if sortie_id.startswith(f"ffcam_{club['key']}_"):
+            return "🏔️", club["label"]
+    return "🌐", "FFCAM"
+
+
+def scrape_all_clubs(db: SortiesDB) -> int:
+    """Scrape tous les clubs FFCAM configurés et upsert les sorties. Retourne le nb de sorties traitées."""
+    count = 0
+    for club in get_clubs():
+        try:
+            scraper = FFCAMScraper(club_id=club["club_id"], club_label=club["label"], source_key=club["key"])
+            for sortie in scraper.scrape_sorties():
+                db.upsert_sortie(sortie)
+                count += 1
+        except Exception as e:
+            print(f"❌ Erreur scraping {club['label']}: {e}")
+    return count
 
 
 def format_date_lecture(iso_date: str) -> str:
@@ -55,18 +68,9 @@ db = get_db()
 
 # Scraping automatique au chargement de la page (une fois par session)
 if "auto_scrape_done" not in st.session_state:
-    data_dir = os.path.dirname(os.getenv("DB_PATH", "/data/sorties.db")) or "/data"
     with st.spinner("🔄 Mise à jour des sorties..."):
         try:
-            watcher = CAFWatcher(data_dir)
-            watcher.check_for_updates()
-        except Exception:
-            pass
-        try:
-            ffcam = FFCAMScraper(data_dir)
-            if ffcam.has_auth():
-                for sortie in ffcam.scrape_sorties():
-                    db.upsert_sortie(sortie)
+            scrape_all_clubs(db)
         except Exception:
             pass
         try:
@@ -135,28 +139,19 @@ with st.sidebar:
             st.success("Toutes les sorties réinitialisées")
             st.rerun()
 
-    # FFCAM : configurer JWT
+    # FFCAM : clubs suivis (plateforme ALPI, API publique sans authentification)
     st.divider()
-    st.subheader("🌐 FFCAM")
-    with st.expander("Configurer le JWT (sorties.ffcam.fr)"):
-        st.caption("Colle le JWT (Authorization) depuis DevTools → Network → requête **for-club/outing** → Request Headers → **Authorization** (eyJ...).")
-        jwt_input = st.text_area("JWT (Authorization)", height=60, placeholder="eyJ... (access token)", label_visibility="collapsed", key="ffcam_jwt")
-        if st.button("Sauvegarder le JWT FFCAM", use_container_width=True, key="save_jwt") and jwt_input:
-            data_dir = os.path.dirname(os.getenv("DB_PATH", "/data/sorties.db")) or "/data"
-            ffcam = FFCAMScraper(data_dir=data_dir)
-            if ffcam.save_jwt(jwt_input):
-                with st.spinner("Chargement des sorties FFCAM..."):
-                    for sortie in ffcam.scrape_sorties():
-                        db.upsert_sortie(sortie)
-                st.success("JWT enregistré. Sorties FFCAM mises à jour.")
-                st.rerun()
+    st.subheader("🌐 Clubs FFCAM suivis")
+    for club in get_clubs():
+        st.caption(f"🏔️ {club['label']} — `{club['club_id']}`")
 
     # Filtre par source
     st.divider()
+    source_options = [c["label"] for c in get_clubs()] + ["FFCAM Formations"]
     source_filter = st.multiselect(
         "Source",
-        ["CAF Crest", "FFCAM", "FFCAM Formations"],
-        default=["CAF Crest", "FFCAM", "FFCAM Formations"]
+        source_options,
+        default=source_options
     )
 
 # Récupère les sorties en fonction des filtres
@@ -176,28 +171,16 @@ sorties = db.search_sorties(
 )
 
 # Filtre par source
-if source_filter and len(source_filter) < 3:
+if source_filter and len(source_filter) < len(source_options):
     def keep_by_source(s):
-        if s['id'].startswith('ffcam_form_'):
-            return "FFCAM Formations" in source_filter
-        if s['id'].startswith('ffcam_'):
-            return "FFCAM" in source_filter
-        return "CAF Crest" in source_filter
+        _, label = source_info(s['id'])
+        return label in source_filter
     sorties = [s for s in sorties if keep_by_source(s)]
 
 def display_sorties(db, sorties_list):
     """Affiche la liste des sorties"""
     for sortie in sorties_list:
-        # Emoji de source
-        if sortie['id'].startswith('ffcam_form_'):
-            source_emoji = "📚"
-            source_label = "FFCAM Formations"
-        elif sortie['id'].startswith('ffcam_'):
-            source_emoji = "🌐"
-            source_label = "FFCAM"
-        else:
-            source_emoji = "🏔️"
-            source_label = "CAF Crest"
+        source_emoji, source_label = source_info(sortie['id'])
 
         # Couleur selon le statut
         if sortie['vu']:
@@ -228,7 +211,7 @@ def display_sorties(db, sorties_list):
             with col2:
                 # Informations de la sortie avec lien et source
                 if sortie.get('url'):
-                    st.markdown(f"### {emoji_status} {source_emoji} [{sortie['titre']}]({url_outing_ffcam(sortie['url'])})")
+                    st.markdown(f"### {emoji_status} {source_emoji} [{sortie['titre']}]({sortie['url']})")
                 else:
                     st.markdown(f"### {emoji_status} {source_emoji} {sortie['titre']}")
                 st.caption(f"Source: {source_label}")
@@ -297,17 +280,9 @@ with col_title:
     st.subheader(f"📋 {len(sorties)} sortie(s) trouvée(s)")
 with col_refresh:
     if st.button("🔄", key="refresh_list", help="Rafraîchir la liste"):
-        data_dir = os.path.dirname(os.getenv("DB_PATH", "/data/sorties.db")) or "/data"
         with st.spinner("🔄 Mise à jour..."):
             try:
-                CAFWatcher(data_dir).check_for_updates()
-            except Exception:
-                pass
-            try:
-                ffcam = FFCAMScraper(data_dir)
-                if ffcam.has_auth():
-                    for sortie in ffcam.scrape_sorties():
-                        db.upsert_sortie(sortie)
+                scrape_all_clubs(db)
             except Exception:
                 pass
             try:
