@@ -148,10 +148,11 @@ with st.sidebar:
     # Filtre par source
     st.divider()
     source_options = [c["label"] for c in get_clubs()] + ["FFCAM Formations"]
+    default_sources = [c["label"] for c in get_clubs() if c["key"] == "crest"] or source_options
     source_filter = st.multiselect(
         "Source",
         source_options,
-        default=source_options
+        default=default_sources
     )
 
 # Récupère les sorties en fonction des filtres
